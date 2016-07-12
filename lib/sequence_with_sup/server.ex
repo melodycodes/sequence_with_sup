@@ -1,8 +1,25 @@
 defmodule SequenceWithSup.Server do
   use GenServer
+  require Logger
+
+  @vsn "1"
+  defmodule State do
+    defstruct current_number: 0, stash_pid: nil, delta: 1
+  end
 
   def format_status(_reason, [_pdict, state]) do
     [data: [{'State', "My current state is '#{inspect state}', and I'm happy"}]]
+  end
+
+  def code_change("0", old_state = { current_number, stash_pid }, _extra) do
+    new_state = %State{current_number: current_number,
+                       stash_pid: stash_pid,
+                       delta: 1
+                      }
+    Logger.info "changing code from 0 to 1"
+    Logger.info inspect(old_state)
+    Logger.info inspect(new_state)
+    {:ok, new_state}
   end
 
   ####
@@ -12,7 +29,8 @@ defmodule SequenceWithSup.Server do
   end
 
   def next_number do
-    GenServer.call __MODULE__, :next_number
+    with number = GenServer.call(__MODULE__, :next_number),
+    do: "The next number is #{number}"
   end
 
   def increment_number(delta) do
@@ -22,22 +40,25 @@ defmodule SequenceWithSup.Server do
   ####
   # GenServer implementation
   def init(stash_pid) do
-    current_number = SequenceWithSup.Stash.get_value stash_pid
-    {:ok, {current_number, stash_pid}}
-  end
-  def handle_call(:next_number, _from, {current_number, stash_pid}) do
-    {:reply, current_number, {current_number + 1, stash_pid}}
-  end
-
-  def handle_call({:set_number, new_number}, _from, _current) do
-    {:reply, new_number, new_number}
+    {current_number, delta} = SequenceWithSup.Stash.get_value stash_pid
+    { :ok,
+      %State{ current_number: current_number,
+              stash_pid: stash_pid,
+              delta: delta } }
   end
 
-  def handle_cast({:increment_number, delta}, {current, stash_pid}) do
-    {:noreply, {current + delta, stash_pid}}
+  def handle_call(:next_number, _from, state) do
+    { :reply,
+      state.current_number,
+      %{ state | current_number: state.current_number + state.delta } }
   end
 
-  def terminate(_reason, {current_number, stash_pid}) do
-    SequenceWithSup.Stash.save_value stash_pid, current_number
+  def handle_cast({:increment_number, delta}, state) do
+    { :noreply,
+      %{ state | current_number: state.current_number + delta, delta: delta } }
+  end
+
+  def terminate(_reason, state) do
+    SequenceWithSup.Stash.save_value state.stash_pid, {state.current_number, state.delta}
   end
 end

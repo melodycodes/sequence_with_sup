@@ -1,0 +1,7 @@
+{"0.0.2",
+ [{"0.0.1",
+   [{update,'Elixir.SequenceWithSup.Server',{advanced,[]}},
+    {update,'Elixir.SequenceWithSup.Stash',{advanced,[]}}]}],
+ [{"0.0.1",
+   [{update,'Elixir.SequenceWithSup.Server',{advanced,[]}},
+    {update,'Elixir.SequenceWithSup.Stash',{advanced,[]}}]}]}.
